@@ -17,17 +17,20 @@ from skimage import measure
 from skimage.measure import label
 import cv2
 
+#change filename depending on what data you intend to train
 species=[]
 with open("pests.csv",'rb') as f:
     reader = csv.reader(f)
     for row in reader:
         species.append(row[-1])
 
+#write values to a csv file. filename should be change too, also depending on what data to train
 f = open('pesttraining.csv','w')
 wr = csv.writer(f)
 for s in species:
 	for i in xrange(1,15):
-		filename='Training/'+s+'/'+repr(i)+'.jpg'
+		#right path to the folder should be observed
+		filename='Training/Pests/'+s+'/'+repr(i)+'.jpg'
 		selem = disk(8)
 
 		image = data.imread(filename,as_grey=True)

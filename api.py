@@ -19,7 +19,7 @@ from skimage.morphology import disk
 from skimage.feature import greycomatrix, greycoprops
 from skimage import measure
 from skimage.measure import label
-from flask.ext.cors import CORS, cross_origin
+from flask_cors import CORS, cross_origin
 from flask import Flask, request,g
 from mahotas.features import haralick
 
@@ -27,10 +27,47 @@ app = Flask(__name__)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
+#default (no ontology) global variables
 global pests
 global pestANN 
 global diseases
 global diseaseANN
+
+#rice crop global variables
+global ricepests
+global ricepestANN
+global ricediseases
+global ricediseaseANN
+
+#corn crop global variables
+global cornpests
+global cornpestANN
+global corndiseases
+global corndiseaseANN
+
+#banana crop global variables
+global bananapests
+global bananapestANN
+global bananadiseases
+global bananadiseaseANN
+
+#cacao crop global variables
+global cacaopests
+global cacaopestANN
+global cacaodiseases
+global cacaodiseaseANN
+
+#coffee crop global variables
+global coffeepests
+global coffeepestANN
+global coffeediseases
+global coffeediseaseANN
+
+#coconut crop global variables
+global coconutpests
+global coconutpestANN
+global coconutdiseases
+global coconutdiseaseANN
 
 def getSpecies(filename):
 	species=[]
@@ -262,43 +299,106 @@ def predict(nnet,species,features):
 
 	return prediction[0]
 
-
+#route for pestImageSearch (default) with authorization
 @app.route("/pestImageSearch", methods=['POST', 'OPTIONS'])
 @cross_origin(origin='*',headers=['Content-Type','Authorization'])
 def pestImageSearch():
-	filename = request.form.get("filename","")
-
-	pestFeatures = pestFeatureExtraction(filename)
-
-	pestPrediction = predict(pestANN,pests,pestFeatures)
+	filename = request.form.get("filename","")	#get filename of uploaded picture from web app
+	typ = request.form.get("type","")			#get type
+	crop = request.form.get("crop","")			#get crop affected
+	clas = request.form.get("class","")			#get class
 	
+	#assign default values (without ontology)
+	pestsTest = pests
+	pestTestANN = pestANN
+	#print "Type: "+typ+" Crop: "+crop+" Class: "+clas
+	if crop == "Banana":			#banana pests data will be evaluated
+		pestsTest = bananapests
+		pestTestANN = bananapestANN
+	elif crop == "Rice":			#rice pests data
+		pestsTest = ricepests
+		pestTestANN = ricepestANN
+	elif crop == "Corn":			#corn pests data
+		pestsTest = cornpests
+		pestTestANN = cornpestANN
+	elif crop == "Cacao":			#cacao diseases data
+		diseasesTest = cacaodiseases
+		diseaseTestANN = cacaodiseaseANN
+	elif crop == "Coffee":			#coffee diseases data
+		diseasesTest = coffeediseases
+		diseaseTestANN = coffeediseaseANN
+	elif crop == "Coconut":			#coconut diseases data
+		diseasesTest = coconutdiseases
+		diseaseTestANN = coconutdiseaseANN
+
+	#feature extraction
+	pestFeatures = pestFeatureExtraction(filename)
+	#pest identification (prediction)
+	pestPrediction = predict(pestTestANN,pestsTest,pestFeatures)
+	#sort results according to confidence
 	sortedPestPrediction=np.argsort(pestPrediction)[::-1]
+
+	#append data to an array
 	pestData=[]
 	for i in xrange(0,5):
-		pestData.append({'name':pests[sortedPestPrediction[i]],'confidence':pestPrediction[sortedPestPrediction[i]]})
+		pestData.append({'name':pestsTest[sortedPestPrediction[i]],'confidence':pestPrediction[sortedPestPrediction[i]]})
 
+	#assign array of data to a variable, ready to be returned to the web app
 	#result = {'data': pestData, 'features': pestFeatures[0].tolist() }
 	result = {'data': pestData}
 
+	#return top 5 results
 	return json.dumps(result)
 
-@app.route("/diseaseImageSearch",methods=["POST"])
+#route for diseaseImageSearch with authorization
+@app.route("/diseaseImageSearch", methods=['POST', 'OPTIONS'])
+@cross_origin(origin='*',headers=['Content-Type','Authorization'])
 def diseaseImageSearch():
-	filename = request.form.get("filename","")
+	filename = request.form.get("filename","")	#get filename of uploaded picture from web app
+	typ = request.form.get("type","")			#get type
+	crop = request.form.get("crop","")			#get crop affected
+	clas = request.form.get("class","")			#get class
 
-	diseaseFeatures = diseaseFeatureExtraction(filename)
+	#assign default values (without ontology)
+	diseasesTest = diseases
+	diseaseTestANN = diseaseANN
+	#print "Type: "+typ+" Crop: "+crop+" Class: "+clas
+	if crop == "Banana":			#banana diseases data will be evaluated
+		diseasesTest = bananadiseases
+		diseaseTestANN = bananadiseaseANN
+	elif crop == "Rice":			#rice diseases data
+		diseasesTest = ricediseases
+		diseaseTestANN = ricediseaseANN
+	elif crop == "Corn":			#corn diseases data
+		diseasesTest = corndiseases
+		diseaseTestANN = corndiseaseANN
+	elif crop == "Cacao":			#cacao diseases data
+		diseasesTest = cacaodiseases
+		diseaseTestANN = cacaodiseaseANN
+	elif crop == "Coffee":			#coffee diseases data
+		diseasesTest = coffeediseases
+		diseaseTestANN = coffeediseaseANN
+	elif crop == "Coconut":			#coconut diseases data
+		diseasesTest = coconutdiseases
+		diseaseTestANN = coconutdiseaseANN
 
-	diseasePrediction = predict(diseaseANN,diseases,diseaseFeatures)
-	
+	#used pestFeatureExtraction bec. diseaseFeatureExtraction does not work properly
+	diseaseFeatures = pestFeatureExtraction(filename)
+	#disease identification (prediction)
+	diseasePrediction = predict(diseaseTestANN,diseasesTest,diseaseFeatures)
+	#sort results according to confidence
 	sortedDiseasePrediction=np.argsort(diseasePrediction)[::-1]
+
+	#append data to an array
 	diseaseData=[]
 	for i in xrange(0,5):
-		diseaseData.append({'name':diseases[sortedDiseasePrediction[i]],'confidence':diseasePrediction[sortedDiseasePrediction[i]]})
+		diseaseData.append({'name':diseasesTest[sortedDiseasePrediction[i]],'confidence':diseasePrediction[sortedDiseasePrediction[i]]})
 	
+	#assign array of data to a variable, ready to be returned to the web app
 	#result = {'data': diseaseData,'features':diseaseFeatures[0].tolist()}
-
 	result = {'data': diseaseData}
 
+	#return top 5 results
 	return json.dumps(result)
 
 @app.route("/addTrainingData",methods=["POST"])
@@ -374,10 +474,43 @@ def addTrainingData():
 	
 
 if __name__ == "__main__":
+	#prepare all trained data 
+	#banana
+	bananapests = getSpecies('bananapests.csv')
+	bananadiseases = getSpecies('bananadiseases.csv')
+	bananapestANN = initANN('bananapesttraining.csv',bananapests, 90, 0.003, 0.1, 900, 0.0000000001)
+	bananadiseaseANN = initANN('bananadiseasetraining.csv',bananadiseases, 64, 0.003, 0.08, 50000, 0.0000000001)
+	#rice
+	ricepests = getSpecies('ricepests.csv')
+	ricediseases = getSpecies('ricediseases.csv')
+	ricepestANN = initANN('ricepesttraining.csv',ricepests, 90, 0.003, 0.1, 900, 0.0000000001)
+	ricediseaseANN = initANN('ricediseasetraining.csv',ricediseases, 64, 0.003, 0.08, 50000, 0.0000000001)
+	#corn
+	cornpests = getSpecies('cornpests.csv')
+	corndiseases = getSpecies('corndiseases.csv')
+	cornpestANN = initANN('cornpesttraining.csv',cornpests, 90, 0.003, 0.1, 900, 0.0000000001)
+	corndiseaseANN = initANN('corndiseasetraining.csv',corndiseases, 64, 0.003, 0.08, 50000, 0.0000000001)
+	#cacao
+	cacaopests = getSpecies('cacaopests.csv')
+	cacaodiseases = getSpecies('cacaodiseases.csv')
+	cacaopestANN = initANN('cacaopesttraining.csv',cacaopests, 90, 0.003, 0.1, 900, 0.0000000001)
+	cacaodiseaseANN = initANN('cacaodiseasetraining.csv',cacaodiseases, 64, 0.003, 0.08, 50000, 0.0000000001)
+	#coffee
+	coffeepests = getSpecies('coffeepests.csv')
+	coffeediseases = getSpecies('coffeediseases.csv')
+	coffeepestANN = initANN('coffeepesttraining.csv',coffeepests, 90, 0.003, 0.1, 900, 0.0000000001)
+	coffeediseaseANN = initANN('coffeediseasetraining.csv',coffeediseases, 64, 0.003, 0.08, 50000, 0.0000000001)
+	#coconut
+	coconutpests = getSpecies('coconutpests.csv')
+	coconutdiseases = getSpecies('coconutdiseases.csv')
+	coconutpestANN = initANN('coconutpesttraining.csv',coconutpests, 90, 0.003, 0.1, 900, 0.0000000001)
+	coconutdiseaseANN = initANN('coconutdiseasetraining.csv',coconutdiseases, 64, 0.003, 0.08, 50000, 0.0000000001)
+	#if ontology-based search/identification was not used, uploaded image will be classified using all data
 	pests = getSpecies('pests.csv')
+	diseases = getSpecies('diseases.csv')
 	pestANN = initANN('pesttraining.csv',pests, 90, 0.003, 0.1, 900, 0.0000000001)
-	#diseases = getSpecies('diseases.csv')
-	#diseaseANN = initANN('diseasetraining.csv',diseases, 64, 0.003, 0.08, 50000, 0.0000000001)
-	#app.run(debug=True, host = '192.168.0.12')
+	diseaseANN = initANN('diseasetraining.csv',diseases, 64, 0.003, 0.08, 50000, 0.0000000001)
+	#app.run(debug=True, host = 'localhost')
 	app.run(debug=True, host = '127.0.0.1')
+	#app.run(debug=True, host = 'localhost')
 	
